@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import math
 import time
+
 import numpy as np
 import rospy
 from geometry_msgs.msg import Twist
@@ -10,9 +10,9 @@ from turtlesim.msg import Pose
 class ControlTurtleCirclesGoal3:
     def __init__(self):
         # publishing topics
-        self.publish_turtle = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)     # turtle commands
-        self.pos_publish_real = rospy.Publisher("/rt_real_pose", Pose, queue_size=10)       # turtle real pose
-        self.pos_publish_noise = rospy.Publisher("/rt_noisy_pose", Pose, queue_size=10)     # turtle noisy pose
+        self.publish_turtle = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)  # turtle commands
+        self.pos_publish_real = rospy.Publisher("/rt_real_pose", Pose, queue_size=10)  # turtle real pose
+        self.pos_publish_noise = rospy.Publisher("/rt_noisy_pose", Pose, queue_size=10)  # turtle noisy pose
 
         # subscribing topics
         rospy.Subscriber("turtle1/pose", Pose, self.pose_callback)
@@ -42,14 +42,14 @@ class ControlTurtleCirclesGoal3:
         dt = t_final - t_initial
 
         # check if acceleration exceeds the limit
-        if dv/dt > max_acc_linear:
+        if dv / dt > max_acc_linear:
             # calculate the new velocity
             dv2 = max_acc_linear * dt
             v_final = v_initial + dv2
             print('----------------MAX ACCELERATION REACHED------------------------')
 
         # check if deceleration exceeds the lower limit
-        if dv/dt < max_dec_linear:
+        if dv / dt < max_dec_linear:
             # calculate the new velocity
             dv2 = max_dec_linear * dt
             v_final = v_initial + dv2
@@ -81,7 +81,7 @@ class ControlTurtleCirclesGoal3:
         self.msg.linear.x = self.speed
 
         # define the angular velocity of turtle bot
-        self.msg.angular.z = self.msg.linear.x/self.radius
+        self.msg.angular.z = self.msg.linear.x / self.radius
 
         # initialize variables
         initial_t = start_time = time.time()
