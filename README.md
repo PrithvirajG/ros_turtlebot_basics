@@ -13,8 +13,13 @@ I am a beginner in RoS. I have tried my best to complete the goals provided accu
 
 ### Goal 2: Make the bot go on a given grid
 - the code for this is present inside `follow_grid_limit_acceleration.py`
+- 
+[![Watch the video](videos/goal_2_follow_grid_with_limit_on_acceleration.gif)](videos/goal_2_follow_grid_with_limit_on_acceleration.gif)
 
 ### Goal 3: Move the bot in circle of given radius and speed
 - the code for this is present inside `circle_publish_position.py`
+- 
+[![Watch the video](videos/goal_3_circular_path_publish_pose_and_noise.gif)](videos/goal_3_circular_path_publish_pose_and_noise.gif)
+
 
 
