@@ -10,8 +10,8 @@ from turtlesim.msg import Pose
 class ControlTurtleCirclesGoal3:
     def __init__(self):
         self.publish_turtle = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
-        self.pos_publish_real = rospy.Publisher("/circle_real_position", Pose, queue_size=10)
-        self.pos_publish_noise = rospy.Publisher("/circle_noisy_position", Pose, queue_size=10)
+        self.pos_publish_real = rospy.Publisher("/rt_real_pose", Pose, queue_size=10)
+        self.pos_publish_noise = rospy.Publisher("/rt_noisy_pose", Pose, queue_size=10)
 
         rospy.Subscriber("turtle1/pose", Pose, self.pose_callback)
         rospy.init_node('robot_cleaner', anonymous=True)
@@ -58,7 +58,7 @@ class ControlTurtleCirclesGoal3:
         count = 0
 
         while not rospy.is_shutdown():
-            final_vel = self.msg.linear.x
+            final_vel = self.speed
             initial_vel, initial_t = self.limit_linear_acceleration(final_vel, initial_vel, initial_t)
             self.msg.linear.x = initial_vel
             self.publish_turtle.publish(self.msg)
@@ -79,6 +79,7 @@ class ControlTurtleCirclesGoal3:
         self.current_pose_y = data.y
         self.current_angle = data.theta
         self.current_pose = data
+
 
 if __name__ == '__main__':
     try:
