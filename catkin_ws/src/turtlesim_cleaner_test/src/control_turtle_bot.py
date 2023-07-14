@@ -11,10 +11,10 @@ from pid_controller import PID
 
 class ControlTurtleGoal1:
     def __init__(self):
-        # publishing nodes
+        # publishing topics
         self.publisher = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=10)
 
-        # subscribing nodes
+        # subscribing topics
         rospy.Subscriber("turtle1/pose", Pose, self.pose_callback)
 
         # initialize node
@@ -39,7 +39,7 @@ class ControlTurtleGoal1:
         # define twist object for publishing actions
         self.msg = Twist()
 
-        # start the grid
+        # start the movement
         self.move_turtle()
 
     def control_angle(self):
