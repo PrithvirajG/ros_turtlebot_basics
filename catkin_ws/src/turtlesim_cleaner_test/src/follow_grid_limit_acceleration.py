@@ -16,6 +16,8 @@ class ControlTurtleGridGoal2:
 
         # subscribing nodes
         rospy.Subscriber("turtle1/pose", Pose, self.pose_callback)
+
+        # initialize node
         rospy.init_node('robot_cleaner', anonymous=True)
 
         self.rate = rospy.Rate(10)  # 10hz
