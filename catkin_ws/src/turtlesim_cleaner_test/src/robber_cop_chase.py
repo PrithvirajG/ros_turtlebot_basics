@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
+import time
+import message_filters
 import math
 import random
-import threading
-import time
-
-import message_filters
 import numpy as np
+from turtlesim.srv import *
+from pid_controller import PID
+
 import rospy
 from geometry_msgs.msg import Twist
 from turtlesim.msg import Pose
-from turtlesim.srv import *
 
-from pid_controller import PID
+import threading
 
 
 class RobberTurtle:
@@ -21,18 +21,12 @@ class RobberTurtle:
         self.pos_publish_real = rospy.Publisher("/rt_real_pose", Pose, queue_size=10)  # turtle real pose
         self.pos_publish_noise = rospy.Publisher("/rt_noisy_pose", Pose, queue_size=10)  # turtle noisy pose
 
-        # subscribing topics
-        rospy.Subscriber("turtle1/pose", Pose, self.pose_callback)
-
         # define twist object for publishing actions
         self.msg = Twist()
 
         self.stop_msg = Twist()
         self.stop_msg.linear.x = 0
         self.stop_msg.angular.z = 0
-
-        # start the circular movement
-        # self.start_circle()
 
     @staticmethod
     def limit_linear_acceleration(v_final, v_initial, t_initial):
@@ -80,7 +74,7 @@ class RobberTurtle:
     def start_circle(self):
         # get the user input
         self.radius = 4
-        self.speed = 1
+        self.speed = 0.4
 
         # define the tangential velocity of turtle bot
         self.msg.linear.x = self.speed
@@ -91,9 +85,9 @@ class RobberTurtle:
         # initialize variables
         initial_t = start_time = time.time()
         initial_vel = self.msg.linear.x
-        counter = 0
 
         while not rospy.is_shutdown():
+            # initialize global variables of position
             global rt_pose_data, caught, pt_pose_data
             self.current_pose = rt_pose_data
 
@@ -112,10 +106,8 @@ class RobberTurtle:
             # publish the value to command the bot
             self.publish_turtle.publish(self.msg)
 
-            # print(f'-- {rt_pose_data}--')
             # check if 5 seconds are passed
             if (time.time() - start_time) > 5 and self.current_pose is not None:
-                counter += 1
                 start_time = time.time()
 
                 # publish the position every 5 seconds
@@ -123,16 +115,6 @@ class RobberTurtle:
 
                 # publish the gaussian noise
                 self.gaussian_noise()
-                if counter > 6:
-                    break
-
-    def pose_callback(self, data):
-        # call back function to save the subscribed data from 'turtle1/pose'
-        global rt_pose_data
-        self.current_pose_x = data.x
-        self.current_pose_y = data.y
-        self.current_angle = data.theta
-        rt_pose_data = self.current_pose = data
 
 
 class PoliceTurtle:
@@ -140,8 +122,12 @@ class PoliceTurtle:
         # publish commands
         self.publish_turtle = rospy.Publisher('/turtle2/cmd_vel', Twist, queue_size=10)  # turtle commands
 
+        # initialize PID values
         self.angle_PID = PID(P=6, I=0, D=1)
         self.distance_PID = PID(P=0.7, I=0, D=0.1)
+
+        # maximum distance between police and robber to consider it caught
+        self.threshold_distance = 2
 
         # define twist object for publishing actions
         self.msg = Twist()
@@ -151,41 +137,53 @@ class PoliceTurtle:
         self.stop_msg.angular.z = 0
 
         # start the circular movement
-
     def start_chase(self):
-        # spawn the cop turtle
+        # spawn the police turtle
         self.spawn()
 
-        # start the chase
+        # initial goal parameters
+        self.goal_x = 5.45
+        self.goal_y = 5.45
+
         start_time = time.time()
+        _ = 100
         while not rospy.is_shutdown():
-            global pt_pose_data, rt_pose_data, caught
-            if None in [pt_pose_data, rt_real_pose, rt_pose_data]:
+            # initialize global variables
+            global pt_pose_data, rt_pose_data, caught, rt_real_pose
+
+            if time.time() - start_time >= 5:
+
+                self.msg = Twist()
+                self.angle_PID = PID(P=6, I=0, D=1)
+                self.distance_PID = PID(P=0.7, I=0, D=0.1)
+                if rt_real_pose is not None:
+                    self.goal_x = rt_real_pose.x
+                    self.goal_y = rt_real_pose.y
+                    start_time = time.time()
+
+                print(f'LATEST RECEIVED CO_ORDINATES OF ROBBER: ({self.goal_x}, {self.goal_y})')
+
+            # start the movement when subscribed data is received
+            if pt_pose_data is None:
                 continue
 
-            # fetch the new co-ordinates of robber turtle every 5 seconds
-            if time.time() - start_time >= 5:
-                self.msg = Twist()
-                self.angle_PID = PID(P=5, I=0, D=0.1)
-                self.distance_PID = PID(P=0.2, I=0, D=0.1)
-                self.goal_x = rt_real_pose.x
-                self.goal_y = rt_real_pose.y
-                start_time = time.time()
-
-            # control the movement of cop turtle
+            # start movement of police turtle
             self.control_distance_new()
             self.control_angle_new()
             self.publish_turtle.publish(self.msg)
 
-            # halt when it reaches a point (the target where the robber turtle was present 5s ago)
+            # halt the police turtle if reached at latest received robber co-ordinates
             if self.distance < 0.5:
                 self.publish_turtle.publish(self.stop_msg)
 
-            # stop the loop once robber turtle is within range of cop turtle
-            if ((pt_pose_data.x - rt_pose_data.x) ** 2 + (pt_pose_data.y - rt_pose_data.y) ** 2) < 1:
-                caught = False
+            # if distance between cop and robber is less than threshold, stop
+            if ((pt_pose_data.x - rt_pose_data.x)**2 + (pt_pose_data.y - rt_pose_data.y)**2) < self.threshold_distance**2:
+                caught = True
                 self.publish_turtle.publish(self.stop_msg)
+                print('CAUGHT')
                 break
+
+        print('FINISHED CHASE')
 
     def control_angle_new(self):
         target_angle = math.atan2(self.goal_y - pt_pose_data.y, self.goal_x - pt_pose_data.x)
@@ -199,13 +197,12 @@ class PoliceTurtle:
         self.msg.linear.x = self.PID_distance
 
     def spawn(self):
-        # spawns the cop turtle after 10 seconds
         x = random.random() * 10
         y = random.random() * 10
         theta = random.random() * math.pi
         print(f"Waiting for 10 seconds before spawning PT!")
         rospy.wait_for_service('/spawn')
-        time.sleep(10)
+        time.sleep(3)
         try:
             serv = rospy.ServiceProxy('/spawn', Spawn)
             serv(x, y, theta, 'turtle2')
@@ -214,50 +211,56 @@ class PoliceTurtle:
 
 
 def listener():
-    # subscribe to other topics
-    rt_real_pose_sub = message_filters.Subscriber("/rt_real_pose", Pose)
-    turtle2_pos_sub = message_filters.Subscriber("/turtle2/pose", Pose)
-
-    # filter the timestamp based on current time
-    ts = message_filters.ApproximateTimeSynchronizer([turtle2_pos_sub, rt_real_pose_sub], 10, slop=0.1,
-                                                     allow_headerless=True)
-    ts.registerCallback(callback)
-
+    # to subscribe all the topics for turtle position
+    rospy.Subscriber("/turtle1/pose", Pose, robber_pose_callback)
+    rospy.Subscriber("/turtle2/pose", Pose, police_pose_callback)
+    rospy.Subscriber("/rt_real_pose", Pose, robber_real_callback)
     rospy.spin()
 
 
-def callback(data, data2):
-    # store the callback in global variables
-    global pt_pose_data, rt_real_pose
+def robber_real_callback(data):
+    # call back for position of robber turtles which is updated every 5 seconds
+    global rt_real_pose
+    rt_real_pose = data
+
+
+def police_pose_callback(data):
+    # call back for position of police turtle
+    global pt_pose_data
     pt_pose_data = data
-    rt_real_pose = data2
+
+
+def robber_pose_callback(data):
+    # call back for position of robber turtle
+    global rt_pose_data
+    rt_pose_data = data
 
 
 if __name__ == '__main__':
     try:
-        # Initialize global variables
+        # global variables for position and caught status of turtles
         pt_pose_data = None
         rt_real_pose = None
         rt_pose_data = None
         caught = False
 
-        # Initialize node
+        # initialize node
         rospy.init_node('robot_cleaner2', anonymous=True)
         rate = rospy.Rate(10)  # 10hz
 
-        # Create the Turtle Objects
+        # define objects of turtles
         rt = RobberTurtle()
         pt = PoliceTurtle()
 
-        # start the listen thread to subscribe the topics
+        # start the listener thread to subscribe the topics
         listener_thread = threading.Thread(target=listener)
         listener_thread.start()
 
-        # start the movement of robber turtle
+        # start the robber thread to start movement of robber
         worker1 = threading.Thread(target=rt.start_circle)
         worker1.start()
 
-        # start the chasing function of police startle
+        # start police thread to start the chase
         worker2 = threading.Thread(target=pt.start_chase)
         worker2.start()
 
