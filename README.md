@@ -19,7 +19,7 @@ I could not finish the goal 5 and goal 6 as I had already reached my deadline. I
 
 - **create a workspace for catkin**  
  `mkdir catkin_ws`
-- **create a your package folder named 'turtlesim_cleaner_test'. (you can use any name if you want)**  
+- **create your package folder named 'turtlesim_cleaner_test'. (you can use any name if you want)**  
 `catkin_create_pkg turtlesim_cleaner_test geometry_msgs rospy`
 - **go back to main catkin_ws folder and build the project**  
 `catkin_make`
@@ -66,7 +66,7 @@ I could not finish the goal 5 and goal 6 as I had already reached my deadline. I
 ### Goal 2: Make the bot go on a given grid
 - the code for this is present inside `follow_grid_limit_acceleration.py`
 - for this code I have made sure that the bot first turns towards the objective and then moves towards it.
-- on addition to functions in goal1 I have added a function called `limit_linear_acceleration` and `start_grid`
+- in addition to functions in goal-1 I have added a function called `limit_linear_acceleration` and `start_grid`
 - `def limit_linear_acceleration()`
   - a function that would take initial and final velocity along with initial time to compute acceleration and then compute the most close final velocity that could be published so that acceleration is not crossing the limit
   - In the video you can see the acceleration (velocity derivative) graph is getting limited to 100, the extra spikes can be handled by introducing a factor to the equation
@@ -88,12 +88,60 @@ I could not finish the goal 5 and goal 6 as I had already reached my deadline. I
 [![Watch the video](videos/goal_3_circular_path_publish_pose_and_noise.gif)](videos/goal_3_circular_path_publish_pose_and_noise.gif)
 
 ---
-### Goal4: Chase robber turtle bot using another cop bot
-- I failed in solving this problem statement, the main reason was subscribing to multiple topics.
-- I tried `TimeSynchronizer` as well as `ApproximateTimeSynchronizer` but both failed
-- using `ApproximateTimeSynchronizer` I was able to subscribe the topics, but they were not synchronous.
-- the callback would update the positions/data only once
-- I tried researching a lot of resources, but I could resolve my errors
-- Since I could not finish this goal and I am very close to my deadline I could not complete `Goal5` and `Goal6`
+### Goal 4: Chase robber turtle bot using another cop bot
+- added threading for parallely control both the turtle bots as well update the positions using subscribers (listener)
+- code for this goal is present inside `robber_cop_chase.py`
+- `class RobberTurtle`
+  - similar turtle as goal 3, only made to rotate in the circle of given radius and velocity
+  - publishes its real positions and noisy positions on their respective topics.
+  - will break the loop if it gets caught by PoliceTurtle
+- `class PoliceTurtle`
+  - `def start_chase()`
+    - call the `spawn()` function to spawn the police turtle
+    - will get the real pose published by robber every 5 seconds and assign as the current target
+    - call the `control_angle_new()` and `control_distance_new()` functions to start the movement of police turtle to the received target
+    - stop the police turtle momentarily if the old coordinates of robber turtle are reached
+    - break the loop and stop the thread, once the distance between robber turtle and police turtle is below threshold
+  - `control_angle_new()`
+    - return the calculated PID value for angle control
+  - `control_distance_new()`
+    - return the calculated PID calue for distance control
+  - `spawn()`
+    - waits for 10 seconds and spawns police turtle at random position at random angle
+- `listener()`
+  - subscribe the ros topics for positions of turtle1, turtle2 and real_positions
+  - will update on callback functions `robber_pose_callback()`, `robber_pose_callback()`, `robber_pose_callback()` respectively
+  - along with `RobberTurtle.start_circle()` and `PoliceTurtle.start_chase()`, this function will also be on thread.
+
+[![Watch the video](videos/goal_4_robber_cop_chase.gif)](videos/goal_4_robber_cop_chase.gif)
+
+---
+### Goal 5: Chase Robber turtle bot using Police turtle bot with half the velocity of robber-turtle
+- for this goal, the planning is based on prediction of robber turtle's upcoming co-ordinates
+- the prediction is calculated using the upcoming co-ordinates of robber turtle's the latest position, its angular velocity and the radius of circle it is actually travelling in
+- `class RobberTurtle`
+  - this class is very much same as in previous goal
+- `class PoliceTurtle`
+  - this class is almost same as in previous goal, except for following functions
+  - `calculate_robber_circle()`
+    - calculates the centre and radius of circle that will pass through given 3 points
+  - `future_co_ordinates()`
+    - calculates the future co-ordinates using current angle of robber turtle w.r.t centre, angle it will traverse in time 't'(t = 2*R*angle/V)
+  - `start_chase()`
+    - this function will not start movement unless we calculate the centre of the circle
+    - the maximum velocity which is half of robber's velocity is also used as a limit here
+  
+  - Note: This function still has its flaws, it won't calculate the most optimal co-ordinate where the robber is 
+going to be, but it will calculate which is almost at distance R from the police turtle, R being the radius of circle
+
+[![Watch the video](videos/goal_5_robber_slow_cop_planned_chase.gif)](videos/goal_5_robber_slow_cop_planned_chase.gif)
+
+---
+### Goal 6: Chase Robber turtle bot using Police turtle bot with half the velocity of robber-turtle and noisy co-ordinates of robber
+- for this goal I implemented the same plan as of goal 5, only topics were renamed
+- This objective is still completed, provided the standard deviation of the noise data of robber turtle is less than 2.
+- If it starts getting higher, the co-ordinates will be un-predictable and hence cannot be planned
+
+[![Watch the video](videos/goal_6_chase_noisy.gif)](videos/goal_6_chase_noisy.gif)
 
 

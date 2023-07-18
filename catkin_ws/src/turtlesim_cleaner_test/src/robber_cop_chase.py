@@ -202,7 +202,7 @@ class PoliceTurtle:
         theta = random.random() * math.pi
         print(f"Waiting for 10 seconds before spawning PT!")
         rospy.wait_for_service('/spawn')
-        time.sleep(3)
+        time.sleep(10)
         try:
             serv = rospy.ServiceProxy('/spawn', Spawn)
             serv(x, y, theta, 'turtle2')

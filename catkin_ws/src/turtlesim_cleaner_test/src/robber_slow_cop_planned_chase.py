@@ -169,7 +169,6 @@ class PoliceTurtle:
     def euclidian_distance(A, B):
         return math.sqrt((A[0] - B[0])**2 + (A[1] - B[1])**2)
 
-
     def start_chase(self):
         # spawn the police turtle
         self.spawn()
