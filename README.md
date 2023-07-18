@@ -4,14 +4,13 @@
 
 ---
 
-> Hello,  
+**Hello,  
 I am a beginner in RoS. I have tried my best to complete the goals provided accurately. I faced many challenges during installation and setup of this project.
 I have used ROS-noetic in this project.  
     There are some flaws in the movement of the bot, eg: the bot in goal 1 and goal 2 is first rotating to the direction and then moving towards it.
 In later parts i.e. during goal 4, I required a bot that would do rotating and moving simultaneously.
 For goal 2 the approach where you rotate first and then move towards the objective suits well for the sharp turns on the grid.
-I could not finish the goal 5 and goal 6 as I had already reached my deadline. I had work after my office hours everyday hence I could not give my 100% here.
-
+I could not finish the goal 5 and goal 6 as I had already reached my deadline. I had work after my office hours everyday hence I could not give my 100% here.**
 ## Installation
 
 ---
