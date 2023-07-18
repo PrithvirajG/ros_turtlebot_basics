@@ -125,7 +125,7 @@ I could not finish the goal 5 and goal 6 as I had already reached my deadline. I
   - `calculate_robber_circle()`
     - calculates the centre and radius of circle that will pass through given 3 points
   - `future_co_ordinates()`
-    - calculates the future co-ordinates using current angle of robber turtle w.r.t centre, angle it will traverse in time 't'(t = 2*R*angle/V)
+    - calculates the future co-ordinates using current angle of robber turtle w.r.t centre, angle it will traverse in time 't'(t = 2xRxangle/V)
   - `start_chase()`
     - this function will not start movement unless we calculate the centre of the circle
     - the maximum velocity which is half of robber's velocity is also used as a limit here
