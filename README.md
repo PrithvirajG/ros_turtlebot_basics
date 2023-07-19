@@ -118,6 +118,7 @@ I could not finish the goal 5 and goal 6 as I had already reached my deadline. I
 ### Goal 5: Chase Robber turtle bot using Police turtle bot with half the velocity of robber-turtle
 - for this goal, the planning is based on prediction of robber turtle's upcoming co-ordinates
 - the prediction is calculated using the upcoming co-ordinates of robber turtle's the latest position, its angular velocity and the radius of circle it is actually travelling in
+- this goal is coded inside the file `robber_slow_cop_planned_chase.py`
 - `class RobberTurtle`
   - this class is very much same as in previous goal
 - `class PoliceTurtle`
@@ -137,6 +138,7 @@ going to be, but it will calculate which is almost at distance R from the police
 
 ---
 ### Goal 6: Chase Robber turtle bot using Police turtle bot with half the velocity of robber-turtle and noisy co-ordinates of robber
+- this goal is coded inside the file `robber_slow_cop_noisy_planned_chase.py`
 - for this goal I implemented the same plan as of goal 5, only topics were renamed
 - This objective is still completed, provided the standard deviation of the noise data of robber turtle is less than 2.
 - If it starts getting higher, the co-ordinates will be un-predictable and hence cannot be planned
