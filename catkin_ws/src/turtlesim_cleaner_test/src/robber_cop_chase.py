@@ -73,7 +73,7 @@ class RobberTurtle:
 
     def start_circle(self):
         # get the user input
-        self.radius = 4
+        self.radius = 30
         self.speed = 0.4
 
         # define the tangential velocity of turtle bot
@@ -127,7 +127,7 @@ class PoliceTurtle:
         self.distance_PID = PID(P=0.7, I=0, D=0.1)
 
         # maximum distance between police and robber to consider it caught
-        self.threshold_distance = 2
+        self.threshold_distance = 3
 
         # define twist object for publishing actions
         self.msg = Twist()

@@ -76,7 +76,7 @@ class RobberTurtle:
 
     def start_circle(self):
         # get the user input
-        self.radius = 5
+        self.radius = 30
         self.speed = 2
 
         # define the tangential velocity of turtle bot
@@ -130,9 +130,9 @@ class PoliceTurtle:
         self.distance_PID = PID(P=0.7, I=0, D=0.1)
 
         # maximum distance between police and robber to consider it caught
-        self.threshold_distance = 2
+        self.threshold_distance = 3
 
-        self.triangle_abc = []
+        self.points_list = []
 
         # define twist object for publishing actions
         self.msg = Twist()
@@ -141,34 +141,59 @@ class PoliceTurtle:
         self.stop_msg.linear.x = 0
         self.stop_msg.angular.z = 0
 
-    def calculate_robber_circle(self, A, B, C):
-        D = 2*(A.x*(B.y - C.y) + B.x*(C.y - A.y) + C.x*(A.y - B.y))
-        Ux = (A.x**2 + A.y**2)*(B.y - C.y) + (B.x**2 + B.y**2)*(C.y - A.y) + (C.x**2 + C.y**2)*(A.y - B.y)
-        Uy = (A.x**2 + A.y**2)*(C.x - B.x) + (B.x**2 + B.y**2)*(A.x - C.x) + (C.x**2 + C.y**2)*(B.x - A.x)
-        Ux = Ux/D
-        Uy = Uy/D
+    def calculate_robber_circle(self, points_list, police_turtle_loc):
+        X = 0
+        Y = 0
+        radius = 0
+        cn = 0
+        for i1 in range(len(points_list)-2):
+            # for i2 in range(i1+1, len(points_list)):
+            #     for i3 in range(i2+1, len(points_list)):
+            A = points_list[i1]
+            B = points_list[i1+1]
+            C = points_list[i1 + 2]
+            D = 2*(A.x*(B.y - C.y) + B.x*(C.y - A.y) + C.x*(A.y - B.y))
+            Ux = (A.x**2 + A.y**2)*(B.y - C.y) + (B.x**2 + B.y**2)*(C.y - A.y) + (C.x**2 + C.y**2)*(A.y - B.y)
+            Uy = (A.x**2 + A.y**2)*(C.x - B.x) + (B.x**2 + B.y**2)*(A.x - C.x) + (C.x**2 + C.y**2)*(B.x - A.x)
+            cn += 1
+            if D != 0:
+                X += Ux/D
+                Y += Uy/D
+                radius_a = self.euclidian_distance((Ux/D, Uy/D), (A.x, A.y))
+                radius_b = self.euclidian_distance((Ux/D, Uy/D), (B.x, B.y))
+                radius_c = self.euclidian_distance((Ux/D, Uy/D), (C.x, C.y))
+                radius += (radius_a + radius_b + radius_c)/3
+                # centre = (Ux, Uy)
+            else:
+                X += police_turtle_loc.x
+                Y += police_turtle_loc.y
+                radius += 100
 
-        centre = (Ux, Uy)
-
-        if Ux > 11 or Ux < 0 or Uy > 11 or Uy < 0:
-            centre = (5.45, 5.45)
-
-        radiusA = self.euclidian_distance(centre, (A.x, A.y))
-        radiusB = self.euclidian_distance(centre, (B.x, B.y))
-        radiusC = self.euclidian_distance(centre, (C.x, C.y))
-        radius = (radiusA + radiusB + radiusC)/3
-        print(f'Travelling on A CIRCLE : {centre} | {radius} |{radiusA}| {radiusB}| {radiusC}')
+        radius = radius/cn
+        X = X/cn
+        Y = Y/cn
+        centre = (X, Y)
+        print(f'Travelling on A CIRCLE :{cn} {centre} | {radius}')
 
         return centre, radius
 
-    def future_co_ordinates(self, centre, R, C):
-        estimation_error = 0.2
-        current_angle = math.atan2(C.y - centre[1], C.x - centre[0])
-        future_angle = math.atan2(C.y - centre[1], C.x - centre[0]) + 2 + estimation_error
-        future_co_ordinates = (centre[0] + R*math.cos(future_angle), centre[1] + R*math.sin(future_angle))
-        distance = self.euclidian_distance(future_co_ordinates, centre)
-        print(f'FUTURE_COORDINATES: {future_co_ordinates} | DISTANCE: {distance}')
-        return future_co_ordinates
+    def future_co_ordinates(self, centre, R, robber_loc, police_loc):
+        estimation_error = 0.4
+        future_angle = 0
+        reachable_dist = 0
+        future_coordinates = centre
+        i = 0
+        for i in range(4):
+            i += 1
+            current_angle = math.atan2(robber_loc.y - centre[1], robber_loc.x - centre[0])
+            future_angle += current_angle + 2
+            reachable_dist += R
+            future_coordinates = (centre[0] + R * math.cos(future_angle + estimation_error), centre[1] + R * math.sin(future_angle + estimation_error))
+            distance = self.euclidian_distance(future_coordinates, (police_loc.x, police_loc.y))
+            if reachable_dist > distance:
+                break
+        print(f'FUTURE_COORDINATES: [{i}] {future_coordinates} | DISTANCE: {distance}')
+        return future_coordinates
 
     @staticmethod
     def euclidian_distance(A, B):
@@ -191,16 +216,16 @@ class PoliceTurtle:
             global pt_pose_data, rt_pose_data, caught, rt_noise_pose
 
             if time.time() - start_time >= 5:
-                current_target_real = rt_noise_pose
+                current_target_noise = rt_noise_pose
                 self.msg = Twist()
                 self.angle_PID = PID(P=6, I=0, D=1)
                 self.distance_PID = PID(P=0.7, I=0, D=0.1)
                 if rt_noise_pose is not None:
                     print(rt_noise_pose)
                     start_time = time.time()
-                    self.triangle_abc.append(rt_noise_pose)
-                    if len(self.triangle_abc) >= 4 and not chasing:
-                        centre, radius = self.calculate_robber_circle(self.triangle_abc[-1], self.triangle_abc[-2], self.triangle_abc[-3])
+                    self.points_list.append(rt_noise_pose)
+                    if len(self.points_list) > 5 and not chasing:
+                        centre, radius = self.calculate_robber_circle(self.points_list, pt_pose_data)
 
             # start the movement when subscribed data is received
             if pt_pose_data is None or rt_noise_pose is None or centre is None:
@@ -214,14 +239,14 @@ class PoliceTurtle:
                 break
 
             if not chasing:
-                target_x, target_y = self.future_co_ordinates(centre, radius, current_target_real)
-                _ = self.euclidian_distance((target_x, target_y), (pt_pose_data.x, pt_pose_data.y))
-                print(f'CHASING {chasing}', _)
-                if _ <= radius:
-                    print(f'ROBBER WITHIN RANGE {_} : STARTING CHASE')
-                    self.goal_x = target_x
-                    self.goal_y = target_y
-                    chasing = True
+                target_x, target_y = self.future_co_ordinates(centre, radius, current_target_noise, pt_pose_data)
+                # _ = self.euclidian_distance((target_x, target_y), (pt_pose_data.x, pt_pose_data.y))
+                # print(f'CHASING {chasing}', _)
+                # if _ <= radius:
+                #     print(f'ROBBER WITHIN RANGE {_} : STARTING CHASE')
+                self.goal_x = target_x
+                self.goal_y = target_y
+                chasing = True
 
             if chasing:
                 max_vel = 1
@@ -232,7 +257,7 @@ class PoliceTurtle:
                 self.publish_turtle.publish(self.msg)
 
                 # halt the police turtle if reached at latest received robber co-ordinates
-                if self.distance < 0.5 and len(self.triangle_abc) > 3:
+                if self.distance < 0.5 and len(self.points_list) > 3:
                     chasing = False
                     self.publish_turtle.publish(self.stop_msg)
         print('FINISHED CHASE')
@@ -258,7 +283,7 @@ class PoliceTurtle:
         time.sleep(10)
         try:
             serv = rospy.ServiceProxy('/spawn', Spawn)
-            serv(4, 5, theta, 'turtle2')
+            serv(x, y, theta, 'turtle2')
         except rospy.ServiceException as e:
             rospy.loginfo("Service execution failed: %s" + str(e))
 
