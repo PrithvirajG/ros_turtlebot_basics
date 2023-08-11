@@ -131,9 +131,6 @@ For goal 5 and 6 I utilized similar planning algorithm to predict the position o
   - `start_chase()`
     - this function will not start movement unless we calculate the centre of the circle
     - the maximum velocity which is half of robber's velocity is also used as a limit here
-  
-  - Note: This function still has its flaws, it won't calculate the most optimal co-ordinate where the robber is 
-going to be, but it will calculate which is almost at distance R from the police turtle, R being the radius of circle
 
 [![Watch the video](videos/goal_5_robber_slow_cop_planned_chase.gif)](videos/goal_5_robber_slow_cop_planned_chase.gif)
 
