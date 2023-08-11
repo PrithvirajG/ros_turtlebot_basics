@@ -125,8 +125,9 @@ For goal 5 and 6 I utilized similar planning algorithm to predict the position o
   - this class is almost same as in previous goal, except for following functions
   - `calculate_robber_circle()`
     - calculates the centre and radius of circle that will pass through given 3 points
+    - If the centre is arbitrarily large value, or radius tends to infinity because the turtle is travelling sticking to the frame, I have assumed the centre as police turtle and radius as 100
   - `future_co_ordinates()`
-    - calculates the future co-ordinates using current angle of robber turtle w.r.t centre, angle it will traverse in time 't'(t = 2xRxangle/V)
+    - calculates the future co-ordinates using current angle of robber turtle w.r.t centre, angle it will traverse in time 't'(t = 2xRxangle/V) we iterate these until we get the time which in which the Police Turtle will traverse to the point where Robber Turtle's next 'n'th co-ordinates will be.
   - `start_chase()`
     - this function will not start movement unless we calculate the centre of the circle
     - the maximum velocity which is half of robber's velocity is also used as a limit here
@@ -140,6 +141,8 @@ going to be, but it will calculate which is almost at distance R from the police
 ### Goal 6: Chase Robber turtle bot using Police turtle bot with half the velocity of robber-turtle and noisy co-ordinates of robber
 - this goal is coded inside the file `robber_slow_cop_noisy_planned_chase.py`
 - for this goal I implemented the same plan as of goal 5, only topics were renamed
+- Although to calculate the centre I have waited for almost 6 co-ordinates to calculate the mean of noisy co-ordinates which will be closer to the actual co-ordinates of the centre.
+- For larger radius like 30, it will fail because of the incrementing error while calculating the centre as well as predicting the future co-ordinates
 - This objective is still completed, provided the standard deviation of the noise data of robber turtle is less than 2.
 - If it starts getting higher, the co-ordinates will be un-predictable and hence cannot be planned
 
