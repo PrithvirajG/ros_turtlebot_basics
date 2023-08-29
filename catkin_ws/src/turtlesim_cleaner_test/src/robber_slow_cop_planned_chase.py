@@ -13,6 +13,10 @@ from turtlesim.msg import Pose
 
 import threading
 
+ROBBER_TURTLE_SPEED = 3
+POLICE_TURTLE_SPEED = ROBBER_TURTLE_SPEED/2
+RADIUS = 30
+
 
 class RobberTurtle:
     def __init__(self):
@@ -27,6 +31,10 @@ class RobberTurtle:
         self.stop_msg = Twist()
         self.stop_msg.linear.x = 0
         self.stop_msg.angular.z = 0
+
+    @staticmethod
+    def euclidian_distance(A, B):
+        return math.sqrt((A[0] - B[0])**2 + (A[1] - B[1])**2)
 
     @staticmethod
     def limit_linear_acceleration(v_final, v_initial, t_initial):
@@ -73,8 +81,8 @@ class RobberTurtle:
 
     def start_circle(self):
         # get the user input
-        self.radius = 30
-        self.speed = 3
+        self.radius = RADIUS
+        self.speed = ROBBER_TURTLE_SPEED
 
         # define the tangential velocity of turtle bot
         self.msg.linear.x = self.speed
@@ -85,11 +93,12 @@ class RobberTurtle:
         # initialize variables
         initial_t = start_time = time.time()
         initial_vel = self.msg.linear.x
-
+        i = 0
         while not rospy.is_shutdown():
+            i += 1
             # initialize global variables of position
-            global rt_pose_data, caught, pt_pose_data
-            self.current_pose = rt_pose_data
+            global robber_pose_data, caught, police_pose_data
+            self.current_pose = robber_pose_data
 
             # define target speed
             final_vel = self.speed
@@ -99,6 +108,7 @@ class RobberTurtle:
 
             # assign linear speed value to the Twist object
             self.msg.linear.x = initial_vel
+
             if caught:
                 self.publish_turtle.publish(self.stop_msg)
                 break
@@ -106,11 +116,7 @@ class RobberTurtle:
             # publish the value to command the bot
             self.publish_turtle.publish(self.msg)
 
-            # check if 5 seconds are passed
-            if (time.time() - start_time) > 5 and self.current_pose is not None:
-                start_time = time.time()
-
-                # publish the position every 5 seconds
+            if self.current_pose is not None:
                 self.pos_publish_real.publish(self.current_pose)
 
                 # publish the gaussian noise
@@ -129,7 +135,7 @@ class PoliceTurtle:
         # maximum distance between police and robber to consider it caught
         self.threshold_distance = 3
 
-        self.triangle_abc = []
+        self.previous_co_ordinates_of_robber = []
 
         # define twist object for publishing actions
         self.msg = Twist()
@@ -138,49 +144,38 @@ class PoliceTurtle:
         self.stop_msg.linear.x = 0
         self.stop_msg.angular.z = 0
 
-    def calculate_robber_circle(self, A, B, C, police_turtle_loc):
-        D = 2*(A.x*(B.y - C.y) + B.x*(C.y - A.y) + C.x*(A.y - B.y))
-        Ux = (A.x**2 + A.y**2)*(B.y - C.y) + (B.x**2 + B.y**2)*(C.y - A.y) + (C.x**2 + C.y**2)*(A.y - B.y)
-        Uy = (A.x**2 + A.y**2)*(C.x - B.x) + (B.x**2 + B.y**2)*(A.x - C.x) + (C.x**2 + C.y**2)*(B.x - A.x)
-
-        if D != 0:
-            Ux = Ux/D
-            Uy = Uy/D
-            centre = (Ux, Uy)
-            radius = self.euclidian_distance(centre, (A.x, A.y))
-        else:
-            Ux = police_turtle_loc.x
-            Uy = police_turtle_loc.y
-            centre = (Ux, Uy)
-            radius = 100
-
-        # if Ux > 11 or Ux < 0 or Uy > 11 or Uy < 0:
-        #     centre = (5.45, 5.45)
-        # print(f'Travelling on A CIRCLE : {centre} | {radius}')
-
-        return centre, radius
-
-    def future_co_ordinates(self, centre, R, robber_loc, police_loc):
-        estimation_error = 0.2
-        future_angle = 0
-        reachable_dist = 0
-        future_coordinates = centre
-        i = 0
-        for i in range(4):
-            i += 1
-            current_angle = math.atan2(robber_loc.y - centre[1], robber_loc.x - centre[0])
-            future_angle += current_angle + 2
-            reachable_dist += R
-            future_coordinates = (centre[0] + R*math.cos(future_angle), centre[1] + R*math.sin(future_angle))
-            distance = self.euclidian_distance(future_coordinates, (police_loc.x, police_loc.y))
-            if reachable_dist > distance:
-                break
-        print(f'FUTURE_COORDINATES: [{i}] {future_coordinates} | DISTANCE: {distance}')
-        return future_coordinates
+    @staticmethod
+    def calculate_robber_circle_centre(robber_pose):
+        cx = None
+        cy = None
+        if robber_pose.angular_velocity != 0:
+            radius = robber_pose.linear_velocity / robber_pose.angular_velocity
+            cx = robber_pose.x - radius * math.cos(robber_pose.theta - math.pi/2)
+            cy = robber_pose.y - radius * math.sin(robber_pose.theta - math.pi/2)
+        return (cx, cy)
 
     @staticmethod
     def euclidian_distance(A, B):
         return math.sqrt((A[0] - B[0])**2 + (A[1] - B[1])**2)
+
+    @staticmethod
+    def get_new_co_ordinates_of_robber(start_time):
+        global robber_pose_data
+        if time.time() - start_time >= 5:
+            print(f'NEW CO_ORDINATES RECEIVED\n{robber_pose_data}\n')
+            return robber_pose_data
+        else:
+            return False
+
+    @staticmethod
+    def check_if_turtle_stuck_at_edge(previous_co_ordinates_of_police, current_co_ordinates_of_police):
+        if previous_co_ordinates_of_police is None or current_co_ordinates_of_police is None:
+            return False
+        if (abs(previous_co_ordinates_of_police.x - current_co_ordinates_of_police.x) < 0.01) or \
+                (abs(previous_co_ordinates_of_police.y - current_co_ordinates_of_police.y) < 0.01):
+            return True
+        else:
+            return False
 
     def start_chase(self):
         # spawn the police turtle
@@ -190,84 +185,144 @@ class PoliceTurtle:
         self.goal_x = 5.45
         self.goal_y = 5.45
 
+        # start time defined
         start_time = time.time()
-        _ = 100
-        chasing = False
-        centre = None
-        while not rospy.is_shutdown():
-            # initialize global variables
-            global pt_pose_data, rt_pose_data, caught, rt_real_pose
 
-            if time.time() - start_time >= 5:
-                current_target_real = rt_real_pose
-                self.msg = Twist()
-                self.angle_PID = PID(P=6, I=0, D=1)
-                self.distance_PID = PID(P=0.7, I=0, D=0.1)
-                if rt_real_pose is not None:
-                    print(rt_real_pose)
-                    start_time = time.time()
-                    self.triangle_abc.append(rt_real_pose)
-                    if len(self.triangle_abc) >= 4 and not chasing:
-                        centre, radius = self.calculate_robber_circle(self.triangle_abc[-1], self.triangle_abc[-2], self.triangle_abc[-3], pt_pose_data)
+        centre = None
+        received_robber_pose = None
+        chasing_key = False
+
+        expected_time_to_reach = 0
+        time_elapsed = 0
+        previous_police_turtle_pose = None
+
+        while not rospy.is_shutdown():
+
+            # initialize global variables
+            global police_pose_data, robber_pose_data, caught
+
+            # fetch the new co-ordinates if available
+            _ = self.get_new_co_ordinates_of_robber(start_time)
+
+            # if fetched start with controlling
+            if _:
+                # save the robber turtle pose
+                received_robber_pose = _
+                start_time = time.time()
+
+                # append to the list of previous co-ordinates
+                self.previous_co_ordinates_of_robber.append(received_robber_pose)
+                # self.previous_co_ordinates_of_police.append(police_pose_data)
+                _ = False
+
+                time_elapsed += 5
+
+                # checking if cop has reached the edge
+                if self.check_if_turtle_stuck_at_edge(police_pose_data, previous_police_turtle_pose):
+                    chasing_key = False
+                    print('POLICE STUCK ON EDGE')
+                previous_police_turtle_pose = police_pose_data
 
             # start the movement when subscribed data is received
-            if pt_pose_data is None or rt_real_pose is None or centre is None:
+            if police_pose_data is None or received_robber_pose is None:
                 continue
 
-            # if distance between cop and robber is less than threshold, stop
-            if ((pt_pose_data.x - rt_pose_data.x) ** 2 + (
-                    pt_pose_data.y - rt_pose_data.y) ** 2) < self.threshold_distance ** 2:
+            # if distance between cop and robber is less than threshold, COMPLETED CHASE
+            if self.euclidian_distance(
+                    (police_pose_data.x, police_pose_data.y),
+                    (robber_pose_data.x, robber_pose_data.y)) < self.threshold_distance:
                 caught = True
                 self.publish_turtle.publish(self.stop_msg)
                 print('CAUGHT')
                 break
 
-            if not chasing:
-                target_x, target_y = self.future_co_ordinates(centre, radius, current_target_real, pt_pose_data)
-                _ = self.euclidian_distance((target_x, target_y), (pt_pose_data.x, pt_pose_data.y))
-                # print(f'CHASING {chasing}', _)
-                # if _ <= radius:
-                #     print(f'ROBBER WITHIN RANGE {_} : STARTING CHASE')
-                self.goal_x = target_x
-                self.goal_y = target_y
-                chasing = True
+            # if chasing has not started
+            if not chasing_key:
 
-            if chasing:
-                max_vel = current_target_real.linear_velocity/2
+                # initialize control variables of PID
+                self.msg = Twist()
+                self.angle_PID = PID(P=6, I=0, D=1)
+                self.distance_PID = PID(P=0.7, I=0, D=0.1)
 
-                # start movement of police turtle
-                self.control_distance_new(max_vel)
-                self.control_angle_new()
-                self.publish_turtle.publish(self.msg)
+                # calculate the centre of robber turtle's probable path
+                centre = self.calculate_robber_circle_centre(received_robber_pose)
 
-                # halt the police turtle if reached at latest received robber co-ordinates
-                if self.distance < 0.5 and len(self.triangle_abc) > 3:
-                    chasing = False
+                # calculate the radius of arc provided angular velocity exists
+                if received_robber_pose.angular_velocity != 0:
+                    radius = received_robber_pose.linear_velocity / received_robber_pose.angular_velocity
+
+                    # 10% radius for error handling (could be tuned to be better)
+                    radius = radius + radius*0.1
+
+                # if centre is none, mainly because of zero angular velocity
+                if centre == (None, None):
+                    hyp = self.previous_co_ordinates_of_robber.linear_velocity * 5
+                    self.goal_x = self.previous_co_ordinates_of_robber.x + hyp * math.cos(math.pi - self.previous_co_ordinates_of_robber.theta)
+                    self.goal_y = self.previous_co_ordinates_of_robber.y + hyp * math.sin(math.pi - self.previous_co_ordinates_of_robber.theta)
+
+                    print(f'PREDICTED: {self.goal_x, self.goal_y}')
+                    # self.goal_x, self.goal_y = x2, y2
+
+                else:
+                    # define the time delta and time incrementer
+                    time_delta = 0      # total time in which future co-ordinate will be approached
+                    time_incrementer = 1        # by how much increments we should calculate the next co-ordinate
+
+                    while True:
+                        time_delta += time_incrementer
+
+                        # predict tha angle after time_delta has passed (error adjustment for time-delta of 10%)
+                        predicted_angle_wrt_centre = (received_robber_pose.angular_velocity * (time_delta + time_delta*0.1)) + received_robber_pose.theta - (math.pi / 2)
+                        x2 = centre[0] + radius * math.cos(predicted_angle_wrt_centre)
+                        y2 = centre[1] + radius * math.sin(predicted_angle_wrt_centre)
+
+                        # check if it is reachable or not
+                        distance_to_next_co_ordinate = self.euclidian_distance((police_pose_data.x, police_pose_data.y), (x2, y2))
+                        if distance_to_next_co_ordinate < POLICE_TURTLE_SPEED*(time_delta - 0.01):
+                            break
+
+                    # set the goal
+                    print(f'FUTURE: {x2, y2}')
+                    self.goal_x, self.goal_y = x2, y2
+
+                    chasing_key = True
+                    expected_time_to_reach = time_delta
+                    chase_start_time = time.time()
+
+            # start movement of police turtle
+            self.control_distance_new(POLICE_TURTLE_SPEED)
+            self.control_angle_new()
+            self.publish_turtle.publish(self.msg)
+
+            # halt the police turtle if reached at latest received robber co-ordinates or
+            if chasing_key:
+                if self.distance < 0.5 and (len(self.previous_co_ordinates_of_robber) > 3):
+                    chasing_key = False
                     self.publish_turtle.publish(self.stop_msg)
-
-
+                    print('WAITING ...')
 
         print('FINISHED CHASE')
 
     def control_angle_new(self):
-        target_angle = math.atan2(self.goal_y - pt_pose_data.y, self.goal_x - pt_pose_data.x)
-        angle_difference = target_angle - pt_pose_data.theta
+        target_angle = math.atan2(self.goal_y - police_pose_data.y, self.goal_x - police_pose_data.x)
+        angle_difference = target_angle - police_pose_data.theta
         self.PID_angle = self.angle_PID.update(angle_difference)
         self.msg.angular.z = self.PID_angle
 
     def control_distance_new(self, max_vel):
-        self.distance = math.sqrt((self.goal_x - pt_pose_data.x) ** 2 + (self.goal_y - pt_pose_data.y) ** 2)
+        self.distance = math.sqrt((self.goal_x - police_pose_data.x) ** 2 + (self.goal_y - police_pose_data.y) ** 2)
         self.PID_distance = self.distance_PID.update(self.distance)
         if self.PID_distance > max_vel:
             self.msg.linear.x = max_vel
 
-    def spawn(self):
-        x = random.random() * 10
-        y = random.random() * 10
+    @staticmethod
+    def spawn():
+        x = random.random() * 30
+        y = random.random() * 20
         theta = random.random() * math.pi
         print(f"Waiting for 10 seconds before spawning PT!")
         rospy.wait_for_service('/spawn')
-        time.sleep(10)
+        time.sleep(1)
         try:
             serv = rospy.ServiceProxy('/spawn', Spawn)
             serv(x, y, theta, 'turtle2')
@@ -291,22 +346,22 @@ def robber_real_callback(data):
 
 def police_pose_callback(data):
     # call back for position of police turtle
-    global pt_pose_data
-    pt_pose_data = data
+    global police_pose_data
+    police_pose_data = data
 
 
 def robber_pose_callback(data):
     # call back for position of robber turtle
-    global rt_pose_data
-    rt_pose_data = data
+    global robber_pose_data
+    robber_pose_data = data
 
 
 if __name__ == '__main__':
     try:
         # global variables for position and caught status of turtles
-        pt_pose_data = None
+        police_pose_data = None
         rt_real_pose = None
-        rt_pose_data = None
+        robber_pose_data = None
         caught = False
 
         # initialize node
