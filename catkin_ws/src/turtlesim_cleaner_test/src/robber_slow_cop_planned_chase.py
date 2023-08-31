@@ -296,7 +296,7 @@ class PoliceTurtle:
 
             # halt the police turtle if reached at latest received robber co-ordinates or
             if chasing_key:
-                if self.distance < 0.5 and (len(self.previous_co_ordinates_of_robber) > 3):
+                if self.distance < 0.5:
                     chasing_key = False
                     self.publish_turtle.publish(self.stop_msg)
                     print('WAITING ...')
