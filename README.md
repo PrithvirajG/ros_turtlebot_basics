@@ -1,4 +1,4 @@
-# Learning ROS and Turtle Bot
+# TurtleBot Motion Planning and Intelligent Pursuit Simulation
 
 ---
 ### Catkin
