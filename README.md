@@ -1,5 +1,43 @@
 # TurtleBot Motion Planning and Intelligent Pursuit Simulation
 
+### Description
+This project is a multi-stage simulation of TurtleBot navigation and pursuit behaviors implemented using ROS Noetic and Turtlesim.
+Across six goals, it demonstrates various robotic navigation and tracking skills:
+
+**Goal 1: Targeted Movement with PID Control**
+Navigate the turtle bot to any user-specified (X, Y) coordinate using PID control for smooth, overshoot-free movement.
+
+**Goal 2: Grid Navigation with Acceleration Limits**
+Move the turtle bot across a series of grid points while ensuring that acceleration remains within physical limits to simulate real-world motion constraints.
+
+**Goal 3: Circular Motion with Gaussian Noise**
+Make the turtle bot move along a perfect circle while adding Gaussian noise to simulate sensor inaccuracy, helping to model more realistic robot behavior.
+
+**Goal 4: Robber vs. Cop Basic Chase**
+Introduce two bots — a Robber moving in a circle, and a Cop bot trying to chase it using real-time positional updates and PID-controlled movement.
+
+**Goal 5: Intelligent Chase with Velocity Constraints**
+The Cop bot, moving at half the speed of the Robber, predicts the Robber's future trajectory based on its circular motion to successfully intercept it.
+
+**Goal 6: Noisy Intelligent Chase**
+Similar to Goal 5, but now the Cop bot predicts the Robber's path based on noisy position measurements, requiring statistical techniques to estimate the Robber’s true circular path.  
+
+Each goal builds upon the previous one, gradually introducing complexities like velocity limits, prediction under noise, and multi-agent parallel control using threading.
+The project showcases critical robotics concepts like sensor noise handling, acceleration control, predictive tracking, and intelligent pursuit planning — all vital in fields like autonomous robotics, drones, and mobile robot navigation.
+
+This project was designed to explore motion control, path planning, and intelligent pursuit strategies using ROS (Robot Operating System) and the Turtlesim simulator.
+The goal was to progressively develop a deeper understanding of kinematic control, PID-based navigation, trajectory prediction, and robust target tracking under uncertainty (like noisy data), all in a controlled simulation environment.
+
+It mimics real-world robotic challenges, such as:
+
+1. Moving accurately to a target location
+2. Navigating along structured paths
+3. Following trajectories with acceleration limits
+4. Pursuing moving targets with limited velocity and noisy perception data
+5. Predicting motion when direct observations are imperfect
+
+Ultimately, it serves as a hands-on foundation for building real-world autonomous robots capable of intelligent decision-making and pursuit tasks.
+
 ---
 ### Catkin
 
